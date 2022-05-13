@@ -7,13 +7,10 @@ from gaming import train
 
 
 
-env = AtariEnv(game="Atlantis", render_mode="human")
+env = AtariEnv(game="Atlantis")
+env.ale.setBool("sound", False)
 
 
-agent = Agent(DQN_AtariModel, 3, len(env._action_set))
+agent = Agent(DQN_AtariModel, 4, len(env._action_set), eps_decay=0.9999, eps_end=0.01, mem_len=10000)
 
-train(env, agent, [x for x in range(len(env._action_set))], 10, "savepath")
-
-print([x for x in range(len(env._action_set))])
-
-   
+train(env, agent, [x for x in range(len(env._action_set))], 100, "savepath")

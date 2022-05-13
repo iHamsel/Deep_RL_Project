@@ -8,21 +8,16 @@ class DQN_AtariModel(nn.Module):
         super().__init__()
         
         self.layers = nn.Sequential(
-            nn.Conv2d(in_dim, 8, kernel_size=3, padding=1, stride=2),   #48x48
+            nn.Conv2d(in_dim, 32, kernel_size=8, stride=4), # 19
             nn.ReLU(),
-            nn.Conv2d(8, 16, kernel_size=5),                            #44x44
+            nn.Conv2d(32, 64,kernel_size=4, stride=2), #8
             nn.ReLU(),
-            nn.MaxPool2d(2),                                            #22x22
-            nn.Conv2d(16, 32, kernel_size=7),                           #16x16
-            nn.ReLU(),
-            nn.Conv2d(32, 64, kernel_size=7, padding=3, stride=2),      #8x8
+            nn.Conv2d(64, 64, kernel_size=3), #6
             nn.ReLU(),
             nn.Flatten(),
-            nn.Linear(8*8*64, 1024),
+            nn.Linear(7*7*64, 1024),
             nn.ReLU(),
-            nn.Linear(1024, 256),
-            nn.ReLU(),
-            nn.Linear(256, out_dim)
+            nn.Linear(1024, out_dim)
         )
 
     
