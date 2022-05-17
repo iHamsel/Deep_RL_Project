@@ -1,16 +1,25 @@
 from gym.envs.atari.environment import AtariEnv
-from paramiko import Agent
 
-from DQN_Atari import DQN_AtariModel
-from DQN import Agent
+from Agent import Agent
 from gaming import train
 
+import gym
+import wrappers
+from DQN import SingleHead
+import matplotlib.pyplot as plt
+
+env = gym.make("ALE/Pong-v5") #AtariEnv(game="PongNoFrameskip-v4")
+env = gym.wrappers.ResizeObservation(env, (84, 84))
+env = gym.wrappers.GrayScaleObservation(env)
+env = gym.wrappers.FrameStack(env, 4)
+env = wrappers.NumpyWrapper(env, True)
+env = wrappers.PyTorchWrapper(env)
 
 
-env = AtariEnv(game="Atlantis")
-env.ale.setBool("sound", False)
+agent = Agent(SingleHead, env, mem_len=5000, replay_batchsize=32, gamma=0.99)
 
+rewards = train(env, agent, [x for x in range(env.action_space.n)], 200, "savepath")
 
-agent = Agent(DQN_AtariModel, 4, len(env._action_set), eps_decay=0.9999, eps_end=0.01, mem_len=10000)
-
-train(env, agent, [x for x in range(len(env._action_set))], 100, "savepath")
+f = plt.figure()
+plt.plot(rewards)
+plt.show()
