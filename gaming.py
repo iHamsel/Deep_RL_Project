@@ -28,7 +28,7 @@ def train(env, agent, actions, nEpisodes, save_path):
          prev_state = state
          reward = 0
          done = False
-         for _ in range(1):
+         for _ in range(4):
             state, r, done, _ = env.step(actions[action.item()])
             reward += r
 
@@ -41,7 +41,8 @@ def train(env, agent, actions, nEpisodes, save_path):
 
          # Store the transition in memory of DQN
          agent.memory << Transition(prev_state, action, next_state, reward)
-         agent.replay()
+         if t > 0 and t % 1 == 0:
+            agent.replay()
          if done == True:
             break
          
