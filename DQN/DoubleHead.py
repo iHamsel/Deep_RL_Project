@@ -42,5 +42,6 @@ class DoubleHead(DQN):
       x = x.view(x.size()[0], -1)
       adv = self.adv(x)
       val = self.val(x)
-      x = val + (adv - torch.mean(adv, 0, keepdim=True))
+      adv_mean = torch.mean(adv, 1, keepdim=True)
+      x = val + (adv - adv.mean(1, keepdim=True))
       return x
