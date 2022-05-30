@@ -7,7 +7,7 @@ from torch.nn.functional import mse_loss, smooth_l1_loss
 from DQN.DQN import DQN
 from gym import Env
 
-from ReplayMemory import Memory, Transition
+from ReplayMemory import ReplayMemory
 from DQN import DQN
 from DecayValue import *
 
@@ -27,7 +27,7 @@ class Agent():
       assert gamma >= 0 and gamma <= 1, "Parameter 'gamma' have to be 0 <= gamma <= 1!"
 
 
-      self.memory       = Memory(memory_length)
+      self.memory       = ReplayMemory(memory_length)
       self.batch_size   = replay_batchsize
       self.n_actions    = env.action_space.n
       self.eps          = eps
@@ -50,20 +50,21 @@ class Agent():
       """
       states, actions, next_states, rewards = batch
       
-      states = torch.stack(states).to(self.device)
-      actions  = torch.LongTensor(actions).to(self.device)
-      rewards  = torch.FloatTensor(rewards).to(self.device)
-      non_final_mask    =  torch.BoolTensor( [s is not None for s in next_states]).to(self.device)
-      non_final_states  =  torch.stack( [s for s in next_states if s is not None]).to(self.device)
+      states = torch.stack(states)
+      actions  = torch.stack(actions)
+      rewards  = torch.stack(rewards)
+
+      non_final_mask    =  torch.BoolTensor( [s is not None for s in next_states])
+      non_final_states  =  torch.stack( [s for s in next_states if s is not None])
       
-      curr_Q = self.policy_net(states).gather(1, actions.unsqueeze(1)).squeeze(1)
+      curr_Q = self.policy_net(states).gather(1, actions.squeeze(1)).squeeze(1)
       next_Q = self.target_net(non_final_states)
       max_next_Q = next_Q.max(1)[0]
 
       expected_Q = rewards
       expected_Q[non_final_mask] += self.gamma * max_next_Q
 
-      loss = smooth_l1_loss(curr_Q, expected_Q)
+      loss = mse_loss(curr_Q, expected_Q)
       return loss
 
    def learn(self):
@@ -74,7 +75,7 @@ class Agent():
          return
       
       transitions = self.memory.sample(self.batch_size)
-      batch = Transition(*zip(*transitions))
+      batch = zip(*transitions)
 
       loss = self.calcLoss(batch)
       

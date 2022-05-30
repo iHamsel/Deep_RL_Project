@@ -34,11 +34,12 @@ class DoubleAgent(Agent):
    def calcLoss(self, batch):
       states, actions, next_states, rewards = batch
       
-      states = torch.stack(states).to(self.device)
-      actions  = torch.LongTensor(actions).to(self.device)
-      rewards  = torch.FloatTensor(rewards).to(self.device)
-      non_final_mask    =  torch.BoolTensor( [s is not None for s in next_states]).to(self.device)
-      non_final_states  =  torch.stack( [s for s in next_states if s is not None]).to(self.device)
+      states = torch.stack(states)
+      actions  = torch.stack(actions)
+      rewards  = torch.stack(rewards)
+
+      non_final_mask    =  torch.BoolTensor( [s is not None for s in next_states])
+      non_final_states  =  torch.stack( [s for s in next_states if s is not None])
 
 
       curr_Q = self.policy_net(states).gather(1, actions.unsqueeze(1)).squeeze(1)
