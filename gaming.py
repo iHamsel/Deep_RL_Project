@@ -1,7 +1,4 @@
 from itertools import count
-from collections import deque
-import torch
-from Agent import Transition
 
 
 
