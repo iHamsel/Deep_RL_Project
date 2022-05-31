@@ -23,7 +23,7 @@ combinations = [
    {"agent": Agent(SingleHead, env, memory_length=5000, replay_batchsize=32, gamma=0.99), "savename": "SingleNormal"},
    {"agent": Agent(DoubleHead, env, memory_length=5000, replay_batchsize=32, gamma=0.99), "savename": "DuelNormal"},
    {"agent": DoubleAgent(SingleHead, env, memory_length=5000, replay_batchsize=32, gamma=0.99), "savename": "SingleDouble"},
-   {"agent": DoubleAgent(SingleHead, env, memory_length=5000, replay_batchsize=32, gamma=0.99), "savename": "DuelDouble"}
+   {"agent": DoubleAgent(DoubleHead, env, memory_length=5000, replay_batchsize=32, gamma=0.99), "savename": "DuelDouble"}
 ]
 
 
