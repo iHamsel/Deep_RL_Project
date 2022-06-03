@@ -42,7 +42,7 @@ class DoubleAgent(Agent):
       non_final_states  =  torch.stack( [s for s in next_states if s is not None])
 
 
-      curr_Q = self.policy_net(states).gather(1, actions.unsqueeze(1)).squeeze(1)
+      curr_Q = self.policy_net(states).gather(1, actions.squeeze(1)).squeeze(1)
       
       next_Q = self.policy_net(non_final_states)
       _, next_actions = next_Q.max(1)

@@ -30,11 +30,11 @@ class ReplayMemory():
       self.memory = deque([], maxlen=length)
 
    def append(self, state: torch.Tensor, action, next_state: torch.Tensor, reward):
-      device = "cuda" if torch.cuda.is_available() else "cpu"
-      state = state.to(device)
+      action = action.cpu()
+      state = state.cpu()
       if next_state is not None:
-         next_state = next_state.to(device)
-      reward = torch.tensor(reward, device=device)
+         next_state = next_state.cpu()
+      reward = torch.tensor(reward, device="cpu")
       self.memory.append((state, action, next_state, reward))
       pass
 

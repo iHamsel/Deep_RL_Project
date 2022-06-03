@@ -30,11 +30,12 @@ def train(env, agent, actions, nEpisodes, save_path):
 
          # Store the transition in memory of DQN
          agent.memory.append(prev_state, action, next_state, reward)
-         if t > 0 and t % 1 == 0:
+         if t > 0 and t % 4 == 0:
             agent.learn()
          
          
-         if counter > 0 and counter % 1000 == 0:
+         if counter > 0 and counter % 4e4 == 0:
+            print("Target updated")
             agent.updateTargetNetwork()
          
          counter += 1

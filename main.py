@@ -2,7 +2,7 @@ from gym.envs.atari.environment import AtariEnv
 
 from Agent import Agent
 from DoubleAgent import DoubleAgent
-from DecayValue import ExponentialDecay
+from DecayValue import ExponentialDecay, LinearDecay
 from gaming import train
 
 import gym
@@ -20,10 +20,10 @@ env = wrappers.NumpyWrapper(env, True)
 env = wrappers.PyTorchWrapper(env)
 
 combinations = [
-   {"agent": Agent(SingleHead, env, memory_length=5000, replay_batchsize=32, gamma=0.99), "savename": "SingleNormal"},
-   {"agent": Agent(DoubleHead, env, memory_length=5000, replay_batchsize=32, gamma=0.99), "savename": "DuelNormal"},
-   {"agent": DoubleAgent(SingleHead, env, memory_length=5000, replay_batchsize=32, gamma=0.99), "savename": "SingleDouble"},
-   {"agent": DoubleAgent(DoubleHead, env, memory_length=5000, replay_batchsize=32, gamma=0.99), "savename": "DuelDouble"}
+   {"agent": Agent(SingleHead, env, memory_length=int(1e6), replay_batchsize=32, gamma=0.99, eps=LinearDecay(1, 0.1, 1e6)), "savename": "SingleNormal"},
+   {"agent": Agent(DoubleHead, env, memory_length=int(1e6), replay_batchsize=32, gamma=0.99, eps=LinearDecay(1, 0.1, 1e6)), "savename": "DuelNormal"},
+   {"agent": DoubleAgent(SingleHead, env, memory_length=int(1e6), replay_batchsize=32, gamma=0.99, eps=LinearDecay(1, 0.1, 1e6)), "savename": "SingleDouble"},
+   {"agent": DoubleAgent(DoubleHead, env, memory_length=int(1e6), replay_batchsize=32, gamma=0.99, eps=LinearDecay(1, 0.1, 1e6)), "savename": "DuelDouble"}
 ]
 
 
@@ -33,4 +33,5 @@ for combination in combinations:
    savename = combination["savename"]
    with open(f"{savename}.pickle", "wb") as f:
       pickle.dump(rewards, f)
+   del combination["agent"]
 

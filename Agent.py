@@ -41,7 +41,7 @@ class Agent():
       self.updateTargetNetwork()
       self.target_net.eval()
       
-      self.optimizer    = torch.optim.RMSprop(self.policy_net.parameters(), lr=1e-4)
+      self.optimizer    = torch.optim.RMSprop(self.policy_net.parameters(), lr=0.25e-4, alpha=0.95, momentum=0.95, eps=0.01)
 
 
    def calcLoss(self, batch) -> torch.Tensor:
@@ -50,12 +50,12 @@ class Agent():
       """
       states, actions, next_states, rewards = batch
       
-      states = torch.stack(states)
-      actions  = torch.stack(actions)
-      rewards  = torch.stack(rewards)
+      states = torch.stack(states).to(self.device)
+      actions  = torch.stack(actions).to(self.device)
+      rewards  = torch.stack(rewards).to(self.device)
 
       non_final_mask    =  torch.BoolTensor( [s is not None for s in next_states])
-      non_final_states  =  torch.stack( [s for s in next_states if s is not None])
+      non_final_states  =  torch.stack( [s for s in next_states if s is not None]).to(self.device)
       
       curr_Q = self.policy_net(states).gather(1, actions.squeeze(1)).squeeze(1)
       next_Q = self.target_net(non_final_states)
