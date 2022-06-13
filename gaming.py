@@ -1,7 +1,6 @@
 from itertools import count
 
 
-
 def train(env, agent, actions, nEpisodes, save_path):
    rewards = []
 
@@ -34,7 +33,7 @@ def train(env, agent, actions, nEpisodes, save_path):
             agent.learn()
          
          
-         if counter > 0 and counter % 4e4 == 0:
+         if counter > 0 and counter % 4e2 == 0:
             print("Target updated")
             agent.updateTargetNetwork()
          

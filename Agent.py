@@ -1,5 +1,6 @@
 from numbers import Number
 from os import stat
+from more_itertools import sample
 import torch
 import random
 import numpy as np
@@ -10,10 +11,35 @@ from gym import Env
 from ReplayMemory import ReplayMemory
 from DQN import DQN
 from DecayValue import *
+from AgentConfiguration import AgentConfiguration
 
 
 class Agent():
-   def __init__(
+
+   def __init__(self, config: AgentConfiguration):
+      self.config       = config
+      self.memory       = ReplayMemory(config.memory_size)
+      self.batch_size   = config.learningSize
+      self.n_actions    = config.env.action_space.n
+      self.eps          = config.epsilon
+      self.gamma        = config.gamma
+      self.env          = config.env
+
+      self.device       = "cuda" if torch.cuda.is_available() else "cpu"
+      self.policy_net   = config.network(config.env.observation_space, config.env.action_space).to(self.device)
+      self.target_net   = config.network(config.env.observation_space, config.env.action_space).to(self.device)
+
+      self.updateTargetNetwork()
+      self.target_net.eval()
+      self.optimizer    = torch.optim.RMSprop(self.policy_net.parameters(), lr=0.25e-4, alpha=0.95, momentum=0.95, eps=0.01)
+
+      self.trainingRewards    = []
+      self.evaluationRewards  = []
+
+      self.mode = "train"
+
+
+   def old__init__(
       self,
       Model: DQN,
       env: Env,
@@ -32,6 +58,7 @@ class Agent():
       self.n_actions    = env.action_space.n
       self.eps          = eps
       self.gamma        = gamma
+      self.env          = env
 
 
       self.device       = "cuda" if torch.cuda.is_available() else "cpu"
@@ -97,12 +124,64 @@ class Agent():
          Sample a action
       """
       # Explore
-      if random.random() <=self.eps.getValue():
+      if self.mode == "train" and random.random() <=self.eps.getValue():
          return torch.tensor([[random.randrange(self.n_actions)]], device=self.device, dtype=torch.long)
 
       state = torch.reshape(state, (1, *state.shape)).to(self.device)
       # Exploit
       with torch.no_grad():
          return self.policy_net(state).max(1)[1].view(1, 1)
-         
+
+
+   def train(self, episodes):
+      self.mode = "train"
+      for _ in range(episodes):
+         state = self.env.reset()
+         episodeReward = 0
+
+         while True:
+            prev_state = state
+            state, done, reward, action = self.play(state)
+
+            episodeReward += reward
+            next_state = state if done == False else None
+
+            self.memory.append(prev_state, action, next_state, reward)
+            self.learn()
+
+            if done == True:
+               break
+
+         self.trainingRewards.append(episodeReward)
+         print(f"Reward for training episode {len(self.trainingRewards)}: {episodeReward}")
+
+   def eval(self, episodes):
+      self.mode = "eval"
+      for _ in range(episodes):
+         state = self.env.reset()
+         episodeReward = 0
+
+         while True:
+            state, done, reward, _ = self.play(state)
+            episodeReward += reward
+
+            if done == True:
+               break
+
+         self.evaluationRewards.append(episodeReward)
+         print(f"Reward for evaluation episode {len(self.evaluationRewards)}: {episodeReward}")
+  
+
+   def play(self, currentState):
+      reward = 0
+      done = False
+      state = None
+
+      action = self.sample_action(currentState)
+
+      for _ in range(4):
+         state, r, done, _ = self.env.step(action)
+         reward += r
+
+      return state, done, reward, action
 
