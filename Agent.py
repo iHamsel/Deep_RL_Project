@@ -31,44 +31,16 @@ class Agent():
 
       self.updateTargetNetwork()
       self.target_net.eval()
-      self.optimizer    = torch.optim.RMSprop(self.policy_net.parameters(), lr=0.25e-4, alpha=0.95, momentum=0.95, eps=0.01)
+      self.optimizer    = torch.optim.RMSprop(self.policy_net.parameters(), lr=config.learnrate, alpha=0.95, momentum=0.95, eps=0.01)
 
       self.trainingRewards    = []
       self.evaluationRewards  = []
+      self.losses = []
+      self.training_playSteps = 0
+      self.learned = 0
+      self.updated = 0
 
       self.mode = "train"
-
-
-   def old__init__(
-      self,
-      Model: DQN,
-      env: Env,
-      memory_length=5000,
-      replay_batchsize=64,
-      gamma=0.95,
-      eps: DecayValue=ExponentialDecay(0.95, 0.01, 1e5)
-   ):
-      assert issubclass(Model, DQN), "Parameter 'Model' is not a subclass of 'DQN'!"
-      assert isinstance(eps, DecayValue), "Parameter 'eps' is not an instance of 'DecayValue' or a subclass of that!"
-      assert gamma >= 0 and gamma <= 1, "Parameter 'gamma' have to be 0 <= gamma <= 1!"
-
-
-      self.memory       = ReplayMemory(memory_length)
-      self.batch_size   = replay_batchsize
-      self.n_actions    = env.action_space.n
-      self.eps          = eps
-      self.gamma        = gamma
-      self.env          = env
-
-
-      self.device       = "cuda" if torch.cuda.is_available() else "cpu"
-      self.policy_net   = Model(env.observation_space, env.action_space).to(self.device)
-      self.target_net   = Model(env.observation_space, env.action_space).to(self.device)
-
-      self.updateTargetNetwork()
-      self.target_net.eval()
-      
-      self.optimizer    = torch.optim.RMSprop(self.policy_net.parameters(), lr=0.25e-4, alpha=0.95, momentum=0.95, eps=0.01)
 
 
    def calcLoss(self, batch) -> torch.Tensor:
@@ -105,18 +77,22 @@ class Agent():
       batch = zip(*transitions)
 
       loss = self.calcLoss(batch)
-      
+      self.losses.append(loss)
       self.optimizer.zero_grad()
       loss.backward()
       # torch.nn.utils.clip_grad.clip_grad_norm_(self.policy_net.parameters(), 5)
       self.optimizer.step()
       self.eps.step()
+      self.learned += 1
+      if self.learned % self.config.targetUpdateInterval == 0:
+         self.updateTargetNetwork()
+         self.updated += 1    
 
    def updateTargetNetwork(self):
       """
          Load the current state of the policy network into the target network
       """
-      self.target_net.load_state_dict(self.policy_net.state_dict())      
+      self.target_net.load_state_dict(self.policy_net.state_dict()) 
 
 
    def sample_action(self, state) -> Number:
@@ -135,10 +111,13 @@ class Agent():
 
    def train(self, episodes):
       self.mode = "train"
+      self.policy_net.train()
       for _ in range(episodes):
          state = self.env.reset()
          episodeReward = 0
-
+         customEpisodeReward = 0
+         repeated = 0
+         last_action = -1
          while True:
             prev_state = state
             state, done, reward, action = self.play(state)
@@ -146,17 +125,29 @@ class Agent():
             episodeReward += reward
             next_state = state if done == False else None
 
+            if action == last_action:
+               repeated += 1
+            else:
+               repeated = 0
+            
+            last_action = action
+            reward -= 0.0005 * repeated
+            customEpisodeReward += reward
+
             self.memory.append(prev_state, action, next_state, reward)
-            self.learn()
+            self.training_playSteps += 1
+            if self.training_playSteps % self.config.learnInterval == 0:
+               self.learn()
 
             if done == True:
                break
 
          self.trainingRewards.append(episodeReward)
-         print(f"Reward for training episode {len(self.trainingRewards)}: {episodeReward}")
+         print(f"Reward for training episode {len(self.trainingRewards)}: {episodeReward}, {customEpisodeReward} | Epsilon value: {self.eps.getValue()}")
 
    def eval(self, episodes):
       self.mode = "eval"
+      self.policy_net.eval()
       for _ in range(episodes):
          state = self.env.reset()
          episodeReward = 0
@@ -170,7 +161,20 @@ class Agent():
 
          self.evaluationRewards.append(episodeReward)
          print(f"Reward for evaluation episode {len(self.evaluationRewards)}: {episodeReward}")
-  
+   
+   def fillMemory(self):
+      added = 0
+      state = self.env.reset()
+      while added < self.config.memory_size/10:
+         prev_state = state
+         state, done, reward, action = self.play(state)
+         next_state = state
+         self.memory.append(prev_state, action, next_state, reward)
+         added += 1
+         if done:
+            state = self.env.reset()
+
+
 
    def play(self, currentState):
       reward = 0
@@ -179,7 +183,7 @@ class Agent():
 
       action = self.sample_action(currentState)
 
-      for _ in range(4):
+      for _ in range(self.config.repeatAction):
          state, r, done, _ = self.env.step(action)
          reward += r
 
