@@ -47,9 +47,7 @@ for combination in combinations:
       agent.train(10)
       savename = f"{name}_training.pickle"
       with open(f"{savename}", "wb") as f:
-         pickle.dump(agent.trainingRewards, f)
-      with open(f"Losses.pickle", "wb") as f:
-         pickle.dump(agent.losses, f)
+         pickle.dump(agent.log, f)
 
       print(f"Played: {agent.training_playSteps} | Learned: {agent.learned} | Target updated: {agent.updated}")
       

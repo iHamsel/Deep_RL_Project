@@ -1,6 +1,5 @@
 from numbers import Number
-from os import stat
-from more_itertools import sample
+from boto import config
 import torch
 import random
 import numpy as np
@@ -12,6 +11,7 @@ from ReplayMemory import ReplayMemory
 from DQN import DQN
 from DecayValue import *
 from AgentConfiguration import AgentConfiguration
+from TrainingEpisodeLogEntry import TrainingEpisodeLogEntry
 
 
 class Agent():
@@ -33,14 +33,18 @@ class Agent():
       self.target_net.eval()
       self.optimizer    = torch.optim.RMSprop(self.policy_net.parameters(), lr=config.learnrate, alpha=0.95, momentum=0.95, eps=0.01)
 
+
+
+      self.log = []
       self.trainingRewards    = []
       self.evaluationRewards  = []
-      self.losses = []
       self.training_playSteps = 0
       self.learned = 0
       self.updated = 0
 
-      self.mode = "train"
+      self.mode = "prefill"
+
+      self.fillMemory()
 
 
    def calcLoss(self, batch) -> torch.Tensor:
@@ -71,22 +75,21 @@ class Agent():
          Learn with experience replay
       """
       if len(self.memory) < self.batch_size:
-         return
+         return 0
       
       transitions = self.memory.sample(self.batch_size)
       batch = zip(*transitions)
 
       loss = self.calcLoss(batch)
-      self.losses.append(loss)
       self.optimizer.zero_grad()
       loss.backward()
-      # torch.nn.utils.clip_grad.clip_grad_norm_(self.policy_net.parameters(), 5)
       self.optimizer.step()
       self.eps.step()
       self.learned += 1
       if self.learned % self.config.targetUpdateInterval == 0:
          self.updateTargetNetwork()
          self.updated += 1    
+      return float(loss)
 
    def updateTargetNetwork(self):
       """
@@ -100,7 +103,7 @@ class Agent():
          Sample a action
       """
       # Explore
-      if self.mode == "train" and random.random() <=self.eps.getValue():
+      if self.mode == "prefill" or (self.mode == "train" and random.random() <=self.eps.getValue()):
          return torch.tensor([[random.randrange(self.n_actions)]], device=self.device, dtype=torch.long)
 
       state = torch.reshape(state, (1, *state.shape)).to(self.device)
@@ -115,6 +118,7 @@ class Agent():
       for _ in range(episodes):
          state = self.env.reset()
          episodeReward = 0
+         losses = []
          customEpisodeReward = 0
          repeated = 0
          last_action = -1
@@ -131,19 +135,20 @@ class Agent():
                repeated = 0
             
             last_action = action
-            reward -= 0.0005 * repeated
+            if self.config.customReward == True:
+               reward -= 0.0005 * repeated
             customEpisodeReward += reward
 
             self.memory.append(prev_state, action, next_state, reward)
             self.training_playSteps += 1
             if self.training_playSteps % self.config.learnInterval == 0:
-               self.learn()
+               losses.append(self.learn())
 
             if done == True:
                break
-
-         self.trainingRewards.append(episodeReward)
-         print(f"Reward for training episode {len(self.trainingRewards)}: {episodeReward}, {customEpisodeReward} | Epsilon value: {self.eps.getValue()}")
+         avgLoss = sum(losses)/len(losses) if len(losses) > 0 else 0
+         self.log.append(TrainingEpisodeLogEntry(episodeReward, avgLoss, self.training_playSteps, self.learned, self.updated))
+         print(f"Reward for training episode {len(self.log)}: {episodeReward}, {customEpisodeReward} | Avg loss: {self.log[-1].avgLoss} |  Epsilon value: {self.eps.getValue()}")
 
    def eval(self, episodes):
       self.mode = "eval"
@@ -163,14 +168,15 @@ class Agent():
          print(f"Reward for evaluation episode {len(self.evaluationRewards)}: {episodeReward}")
    
    def fillMemory(self):
+      self.mode = "prefill"
+      prefill = self.config.memory_size if self.config.prefill_size > self.config.memory_size else self.config.prefill_size
       added = 0
       state = self.env.reset()
-      while added < self.config.memory_size/10:
+      for _ in range(prefill):
          prev_state = state
          state, done, reward, action = self.play(state)
          next_state = state
          self.memory.append(prev_state, action, next_state, reward)
-         added += 1
          if done:
             state = self.env.reset()
 
