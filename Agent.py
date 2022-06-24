@@ -1,6 +1,5 @@
 from math import sqrt
 from numbers import Number
-from boto import config
 import torch
 import random
 import numpy as np
