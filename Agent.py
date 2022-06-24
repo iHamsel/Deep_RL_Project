@@ -1,3 +1,4 @@
+from math import sqrt
 from numbers import Number
 from boto import config
 import torch
@@ -12,7 +13,6 @@ from DQN import DQN
 from DecayValue import *
 from AgentConfiguration import AgentConfiguration
 from TrainingEpisodeLogEntry import TrainingEpisodeLogEntry
-
 
 class Agent():
 
@@ -32,8 +32,6 @@ class Agent():
       self.updateTargetNetwork()
       self.target_net.eval()
       self.optimizer    = torch.optim.RMSprop(self.policy_net.parameters(), lr=config.learnrate, alpha=0.95, momentum=0.95, eps=0.01)
-
-
 
       self.log = []
       self.trainingRewards    = []
@@ -119,7 +117,6 @@ class Agent():
          state = self.env.reset()
          episodeReward = 0
          losses = []
-         customEpisodeReward = 0
          repeated = 0
          last_action = -1
          while True:
@@ -135,9 +132,6 @@ class Agent():
                repeated = 0
             
             last_action = action
-            if self.config.customReward == True:
-               reward -= 0.0005 * repeated
-            customEpisodeReward += reward
 
             self.memory.append(prev_state, action, next_state, reward)
             self.training_playSteps += 1
@@ -148,7 +142,7 @@ class Agent():
                break
          avgLoss = sum(losses)/len(losses) if len(losses) > 0 else 0
          self.log.append(TrainingEpisodeLogEntry(episodeReward, avgLoss, self.training_playSteps, self.learned, self.updated))
-         print(f"Reward for training episode {len(self.log)}: {episodeReward}, {customEpisodeReward} | Avg loss: {self.log[-1].avgLoss} |  Epsilon value: {self.eps.getValue()}")
+         print(f"Reward for training episode {len(self.log)}: {episodeReward} | Avg loss: {self.log[-1].avgLoss} |  Epsilon value: {self.eps.getValue()}")
 
    def eval(self, episodes):
       self.mode = "eval"

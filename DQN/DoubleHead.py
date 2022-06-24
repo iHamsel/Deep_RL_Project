@@ -1,8 +1,11 @@
 from torch import nn
+from math import sqrt
 import torch
 
 from DQN import DQN
 
+def rescale_gradient(m, i, o):
+   return tuple([i[0]*(1/sqrt(2))])
 
 class DoubleHead(DQN):
    def __init__(self, observation_space, action_space):
@@ -33,6 +36,8 @@ class DoubleHead(DQN):
          nn.Linear(512, 1)
       )
 
+      self.adv.register_full_backward_hook(rescale_gradient)
+      self.val.register_full_backward_hook(rescale_gradient)
     
    def forward(self, x: torch.Tensor):
       """
