@@ -23,7 +23,7 @@ env = wrappers.PyTorchWrapper(env)
 
 
 config = AgentConfiguration(
-   network=DoubleHead,
+   network=SingleHead,
    env=env,
    memory_size=int(5e3),
    prefill_size=int(2.5e3),
@@ -46,14 +46,14 @@ for combination in combinations:
    agent.fillMemory()
    for i in range(150):
       agent.train(10)
-      savename = f"dh_{name}_training.pickle"
+      savename = f"clip_{name}_training.pickle"
       with open(f"{savename}", "wb") as f:
          pickle.dump(agent.log, f)
 
       print(f"Played: {agent.training_playSteps} | Learned: {agent.learned} | Target updated: {agent.updated}")
       
       agent.eval(1)
-      savename = f"dh_{name}_evaluation.pickle"
+      savename = f"clip_{name}_evaluation.pickle"
       with open(f"{savename}", "wb") as f:
          pickle.dump(agent.evaluationRewards, f)
       # if i % 5 == 4:

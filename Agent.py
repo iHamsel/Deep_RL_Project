@@ -80,6 +80,7 @@ class Agent():
       loss = self.calcLoss(batch)
       self.optimizer.zero_grad()
       loss.backward()
+      torch.nn.utils.clip_grad_norm_(self.policy_net.parameters(), 10)
       self.optimizer.step()
       self.eps.step()
       self.learned += 1
