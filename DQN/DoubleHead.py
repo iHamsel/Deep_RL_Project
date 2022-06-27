@@ -49,5 +49,6 @@ class DoubleHead(DQN):
       adv = self.adv(x)
       val = self.val(x)
       adv_mean = torch.mean(adv, 1, keepdim=True)
+      print(adv_mean.shape)
       x = val + (adv - adv.mean(1, keepdim=True))
       return x

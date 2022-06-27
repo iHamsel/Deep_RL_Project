@@ -109,10 +109,52 @@ class Agent():
       with torch.no_grad():
          return self.policy_net(state).max(1)[1].view(1, 1)
 
-
-   def train(self, episodes):
+   def train(self):
       self.mode = "train"
       self.policy_net.train()
+
+      done = False
+      state = self.env.reset()
+      losses = []
+      episodeReward = 0
+      while self.learned < 2.5e5:
+         if done == True:
+            avgLoss = sum(losses)/len(losses) if len(losses) > 0 else 0
+            self.log.append(TrainingEpisodeLogEntry(episodeReward, avgLoss, self.training_playSteps, self.learned, self.updated))
+            print(f"Reward for training episode {len(self.log)}: {episodeReward} | Avg loss: {self.log[-1].avgLoss} |  Epsilon value: {self.eps.getValue()}")
+
+            if len(self.log) % 10 == 0:
+               yield
+
+            self.mode = "train"
+            self.policy_net.train()
+            state = self.env.reset()
+            losses = []
+            episodeReward = 0
+
+         prev_state = state
+         state, done, reward, action = self.play(state)
+
+         episodeReward += reward
+         if reward > 0:
+            reward = 1.0
+         elif reward < 0:
+            reward = -1.0
+         else:
+            reward = 0.0
+         next_state = state if done == False else None
+
+
+         self.memory.append(prev_state, action, next_state, reward)
+         self.training_playSteps += 1
+         if self.training_playSteps % self.config.learnInterval == 0:
+            losses.append(self.learn())
+
+
+   def trainEpisodes(self, episodes):
+      self.mode = "train"
+      self.policy_net.train()
+      
       for _ in range(episodes):
          state = self.env.reset()
          episodeReward = 0

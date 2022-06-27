@@ -13,16 +13,28 @@ import matplotlib.pyplot as plt
 import pickle
 import torch
 
-env = gym.make("PongNoFrameskip-v4")
+
+gamename = "Atlantis"
+
+def rewardTransform(r):
+   if r > 0:
+      return 1.0
+   elif r < 0:
+      return -1.0
+   else:
+      return 0.0
+
+env = gym.make(f"{gamename}NoFrameskip-v4")
 env = gym.wrappers.ResizeObservation(env, (84, 84))
 env = gym.wrappers.GrayScaleObservation(env)
+# env = gym.wrappers.TransformReward(env, rewardTransform)
 # env = gym.wrappers.AtariPreprocessing(env)
 env = gym.wrappers.FrameStack(env, 4)
 env = wrappers.NumpyWrapper(env, True)
 env = wrappers.PyTorchWrapper(env)
 
 
-config = AgentConfiguration(
+singleConfig = AgentConfiguration(
    network=SingleHead,
    env=env,
    memory_size=int(5e3),
@@ -35,29 +47,54 @@ config = AgentConfiguration(
    learnInterval=4,
    targetUpdateInterval=1000)
 
+
+duelConfig = AgentConfiguration(
+   network=DoubleHead,
+   env=env,
+   memory_size=int(5e3),
+   prefill_size=int(2.5e3),
+   learningSize=32,
+   gamma=0.99,
+   learnrate=1e-4,
+   epsilon=LinearDecay(1, 0.001, 5e4),
+   repeatAction=4,
+   learnInterval=4,
+   targetUpdateInterval=1000)
+
+
 combinations = [
-   {"agent": Agent(config), "name": "SingleDQN"}
+   {"agent": Agent(singleConfig), "name": "SingleDQN"},
+   {"agent": DoubleAgent(singleConfig), "name": "SingleDDQN"},
+   {"agent": Agent(duelConfig), "name": "DuelDQN"},
+   {"agent": DoubleAgent(duelConfig), "name": "DuelDDQN"},
 ]
 
 
 for combination in combinations:
-   name = combination["name"]
+   agentname = combination["name"]
    agent: Agent = combination["agent"]
-   agent.fillMemory()
-   for i in range(150):
-      agent.train(10)
-      savename = f"clip_{name}_training.pickle"
+   prefix = f"{gamename}_{agentname}"
+   for _ in agent.train():
+      savename = f"{prefix}_training.pickle"
       with open(f"{savename}", "wb") as f:
          pickle.dump(agent.log, f)
 
       print(f"Played: {agent.training_playSteps} | Learned: {agent.learned} | Target updated: {agent.updated}")
       
       agent.eval(1)
-      savename = f"clip_{name}_evaluation.pickle"
+      savename = f"{prefix}_evaluation.pickle"
       with open(f"{savename}", "wb") as f:
          pickle.dump(agent.evaluationRewards, f)
-      # if i % 5 == 4:
-      #    torch.save(agent.policy_net.state_dict(), f"{name}_{(i+1)*10}.model")
+
+   savename = f"{prefix}_training.pickle"
+   with open(f"{savename}", "wb") as f:
+      pickle.dump(agent.log, f)
+
+   savename = f"{prefix}_evaluation.pickle"
+   with open(f"{savename}", "wb") as f:
+      pickle.dump(agent.evaluationRewards, f)
+   
+   torch.save(agent.policy_net.state_dict(), f"{prefix}.model")
 
    del agent
 

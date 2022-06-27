@@ -1,15 +1,10 @@
-from numbers import Number
 import torch
-import random
-import numpy as np
-from torch.nn.functional import mse_loss, smooth_l1_loss
+from torch.nn.functional import mse_loss
 from DQN.DQN import DQN
 
-from ReplayMemory import Memory, Transition
-from DQN import DQN
 from DecayValue import *
 from Agent import Agent
-from gym import Env
+from AgentConfiguration import AgentConfiguration
 
 
 
@@ -19,16 +14,8 @@ from gym import Env
 
 
 class DoubleAgent(Agent):
-   def __init__(
-      self,
-      Model: DQN,
-      env: Env,
-      memory_length=5000,
-      replay_batchsize=64,
-      gamma=0.95,
-      eps: DecayValue=ExponentialDecay(0.95, 0.01, 1e5)
-   ):
-      super().__init__(Model, env, memory_length, replay_batchsize, gamma, eps)
+   def __init__(self, config: AgentConfiguration):
+      super().__init__(config)
 
 
    def calcLoss(self, batch):
@@ -51,7 +38,7 @@ class DoubleAgent(Agent):
 
       expected_Q = rewards
       expected_Q[non_final_mask] += self.gamma * target_next_Q
-      loss = smooth_l1_loss(curr_Q, expected_Q)
+      loss = mse_loss(curr_Q, expected_Q)
       return loss
 
 
