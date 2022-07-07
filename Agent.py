@@ -1,14 +1,9 @@
-from math import sqrt
 from numbers import Number
 import torch
 import random
-import numpy as np
-from torch.nn.functional import mse_loss, smooth_l1_loss
-from DQN.DQN import DQN
-from gym import Env
+from torch.nn.functional import mse_loss
 
 from ReplayMemory import ReplayMemory
-from DQN import DQN
 from DecayValue import *
 from AgentConfiguration import AgentConfiguration
 from TrainingEpisodeLogEntry import TrainingEpisodeLogEntry
@@ -41,7 +36,7 @@ class Agent():
 
       self.mode = "prefill"
 
-      self.fillMemory()
+      #self.fillMemory()
 
 
    def calcLoss(self, batch) -> torch.Tensor:
@@ -117,7 +112,7 @@ class Agent():
       state = self.env.reset()
       losses = []
       episodeReward = 0
-      while self.learned < 2.5e5:
+      while self.learned < 1e6:
          if done == True:
             avgLoss = sum(losses)/len(losses) if len(losses) > 0 else 0
             self.log.append(TrainingEpisodeLogEntry(episodeReward, avgLoss, self.training_playSteps, self.learned, self.updated))

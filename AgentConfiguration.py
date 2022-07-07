@@ -20,5 +20,3 @@ class AgentConfiguration:
    targetUpdateInterval:   int   = 1e4    #Update the target network n learning iterations
 
    epsilon:                int   = ExponentialDecay(1, 1e-2, 1e6)    #Selecting algorithm for epsilon-greedy
-
-   customReward:           bool  = False
