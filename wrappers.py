@@ -1,7 +1,83 @@
+import imp
 import gym
 from gym import spaces
 import numpy as np
 import torch
+import random
+
+class NoopResetEnv(gym.Wrapper):
+   def __init__(self, env: gym.Env, maxNoops: int):
+      assert env.unwrapped.get_action_meanings()[0] == "NOOP", "Environment has no NOOP"
+
+      gym.Wrapper(env)
+      self.__maxNoops = maxNoops
+      self.env = env
+      
+
+   def reset(self, **kwargs):
+      noops = random.randrange(0, self.__maxNoops+1)
+      state = self.env.reset(**kwargs)
+      for _ in range(noops):
+         state, _, done, _ = self.env.step(0)
+         if done == True:
+            self.env.reset(**kwargs)
+      return state
+
+class ResetOnLiveEnv(gym.Wrapper):
+   def __init__(self, env:gym.Env):
+      gym.Wrapper(env)
+      self.env = env
+      self.lives = 0
+
+   def step(self, action):
+      obs, reward, done, info = self.env.step(action)
+      currentLives = self.env.unwrapped.ale.lives()
+      lifeLost = currentLives < self.lives
+      retDone = done or lifeLost
+      self.lives = currentLives
+      return obs, reward, retDone, info
+
+class EpisodicLiveEnv(gym.Wrapper):
+   def __init__(self, env:gym.Env):
+      gym.Wrapper(env)
+      self.env = env
+      self.lives = 0
+      self.totalDone = True
+
+   def step(self, action):
+      obs, reward, done, info = self.env.step(action)
+      self.totalDone = done
+      currentLives = self.env.unwrapped.ale.lives()
+      if 0 < currentLives < self.lives:
+         done = True
+      self.lives = currentLives
+      print(f"TotalDone: {self.totalDone}")
+      print(f"Done: {done}")
+      print(f"Action: {action}")
+      return obs, reward, done, info
+
+   def reset(self, **kwargs):
+      if self.totalDone:
+         obs = self.env.reset(**kwargs)
+      else:
+         obs, _, _, _ = self.env.step(1)
+      self.lives = self.env.unwrapped.ale.lives()
+      return obs
+
+class LiveLostContinueEnv(gym.Wrapper):
+   def __init__(self, env:gym.Env):
+      gym.Wrapper(env)
+      self.env = env
+      self.lives = 0
+
+   def step(self, action):
+      obs, reward, done, info = self.env.step(action)
+      currentLives = self.env.unwrapped.ale.lives()
+      if currentLives < self.lives:
+         obs, _, _, _ = self.env.step(1) #perform action to continue (no-op don't work @ breakout)
+      self.lives = currentLives
+      return obs, reward, done, info
+
 
 class NumpyWrapper(gym.ObservationWrapper):
    def __init__(self, env, stacked):

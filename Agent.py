@@ -1,4 +1,5 @@
 from numbers import Number
+from sqlalchemy import false, true
 import torch
 import random
 from torch.nn.functional import mse_loss
@@ -7,6 +8,7 @@ from ReplayMemory import ReplayMemory
 from DecayValue import *
 from AgentConfiguration import AgentConfiguration
 from TrainingEpisodeLogEntry import TrainingEpisodeLogEntry
+from TrainingEpisodeLogEntry import TrainingLog
 
 class Agent():
 
@@ -33,6 +35,8 @@ class Agent():
       self.training_playSteps = 0
       self.learned = 0
       self.updated = 0
+
+      self.trainLog = TrainingLog()
 
       self.mode = "prefill"
 
@@ -105,28 +109,45 @@ class Agent():
          return self.policy_net(state).max(1)[1].view(1, 1)
 
    def train(self):
+      while self.learned < 1e6:
+         learnedLeft = 1e6 - self.learned
+         if learnedLeft > 5000:
+            self.trainEpoch(5000)
+         else:
+            self.trainEpoch(learnedLeft)
+
+         yield
+
+   def trainEpoch(self, epochLength: int):
       self.mode = "train"
       self.policy_net.train()
 
-      done = False
+      done = false
       state = self.env.reset()
       losses = []
       episodeReward = 0
-      while self.learned < 1e6:
+      finishedEpisodes = 0
+
+      prevEpisodeSteps  = self.training_playSteps
+      prevLearned       = self.learned
+
+      savedParameters = []
+      for p in self.policy_net.parameters():
+         savedParameters.append(p.data.clone())
+
+      while self.learned - prevLearned < 5000:
          if done == True:
             avgLoss = sum(losses)/len(losses) if len(losses) > 0 else 0
-            self.log.append(TrainingEpisodeLogEntry(episodeReward, avgLoss, self.training_playSteps, self.learned, self.updated))
-            print(f"Reward for training episode {len(self.log)}: {episodeReward} | Avg loss: {self.log[-1].avgLoss} |  Epsilon value: {self.eps.getValue()}")
+            episodePlaySteps = self.training_playSteps - prevEpisodeSteps
+            prevEpisodeSteps = self.training_playSteps
+            self.trainLog.appendEpisode(TrainingLog.EpisodeEntry(episodeReward, episodePlaySteps, avgLoss))
+            print(f"Reward for finished episode {self.trainLog.episodesLength()}: {episodeReward}")
 
-            if len(self.log) % 10 == 0:
-               yield
-
-            self.mode = "train"
-            self.policy_net.train()
             state = self.env.reset()
             losses = []
             episodeReward = 0
-
+            finishedEpisodes += 1
+         
          prev_state = state
          state, done, reward, action = self.play(state)
 
@@ -144,6 +165,22 @@ class Agent():
          self.training_playSteps += 1
          if self.training_playSteps % self.config.learnInterval == 0:
             losses.append(self.learn())
+
+      episodes    = self.trainLog.lastEpisodes(finishedEpisodes)
+      avgReward   = sum([e.reward for e in episodes]) / len(episodes)
+      avgLoss     = sum([e.avgLoss * e.steps / self.config.learnInterval for e in episodes]) + sum(losses)
+      avgLoss     = avgLoss / 5000
+      
+      difference = 0
+      n = 0
+      for pair in zip(savedParameters, self.policy_net.parameters()):
+         res = pair[0] - pair[1].data
+         difference += abs(torch.mean(res).detach().item())
+         n += 1
+
+      self.trainLog.appendEpoch(TrainingLog.EpochEntry(avgReward, avgLoss, difference/n, finishedEpisodes))
+      print(self.trainLog.lastEpoch())
+   
 
 
    def trainEpisodes(self, episodes):
@@ -184,7 +221,9 @@ class Agent():
    def eval(self, episodes):
       self.mode = "eval"
       self.policy_net.eval()
+      result = 0
       for _ in range(episodes):
+         done  = False
          state = self.env.reset()
          episodeReward = 0
 
@@ -194,9 +233,11 @@ class Agent():
 
             if done == True:
                break
+         
+         result += episodeReward
 
-         self.evaluationRewards.append(episodeReward)
-         print(f"Reward for evaluation episode {len(self.evaluationRewards)}: {episodeReward}")
+      self.evaluationRewards.append(result / episodes)
+      print(f"Average reward for evaluation: {result / episodes}")
    
    def fillMemory(self):
       self.mode = "prefill"
@@ -206,7 +247,7 @@ class Agent():
       for _ in range(prefill):
          prev_state = state
          state, done, reward, action = self.play(state)
-         next_state = state
+         next_state = state if done == False else None
          self.memory.append(prev_state, action, next_state, reward)
          if done:
             state = self.env.reset()
@@ -223,6 +264,7 @@ class Agent():
       for _ in range(self.config.repeatAction):
          state, r, done, _ = self.env.step(action)
          reward += r
-
+         if done:
+            break
       return state, done, reward, action
 

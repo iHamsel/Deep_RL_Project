@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from DecayValue import ExponentialDecay
+from DecayValue import DecayValue, ExponentialDecay
 from DQN import DQN
 import gym
 
@@ -19,4 +19,4 @@ class AgentConfiguration:
    learnInterval:          int   = 4      #Learn after n play iterations
    targetUpdateInterval:   int   = 1e4    #Update the target network n learning iterations
 
-   epsilon:                int   = ExponentialDecay(1, 1e-2, 1e6)    #Selecting algorithm for epsilon-greedy
+   epsilon:                DecayValue   = ExponentialDecay(1, 1e-2, 1e6)    #Selecting algorithm for epsilon-greedy

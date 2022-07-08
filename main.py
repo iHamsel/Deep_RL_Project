@@ -1,37 +1,25 @@
-from gym.envs.atari.environment import AtariEnv
-
 from Agent import Agent
 from AgentConfiguration import AgentConfiguration
 from DoubleAgent import DoubleAgent
-from DecayValue import ExponentialDecay, LinearDecay
-from gaming import train
+from DecayValue import LinearDecay
 
 import gym
 import wrappers
 from DQN import SingleHead, DoubleHead
-import matplotlib.pyplot as plt
 import pickle
 import torch
 
 
-gamename = "Atlantis"
-
-def rewardTransform(r):
-   if r > 0:
-      return 1.0
-   elif r < 0:
-      return -1.0
-   else:
-      return 0.0
+gamename = "Breakout"
 
 env = gym.make(f"{gamename}NoFrameskip-v4")
 env = gym.wrappers.ResizeObservation(env, (84, 84))
 env = gym.wrappers.GrayScaleObservation(env)
-# env = gym.wrappers.TransformReward(env, rewardTransform)
-# env = gym.wrappers.AtariPreprocessing(env)
 env = gym.wrappers.FrameStack(env, 4)
 env = wrappers.NumpyWrapper(env, True)
 env = wrappers.PyTorchWrapper(env)
+env = wrappers.NoopResetEnv(env, 30)
+env = wrappers.LiveLostContinueEnv(env)
 
 
 singleConfig = AgentConfiguration(
@@ -41,11 +29,11 @@ singleConfig = AgentConfiguration(
    prefill_size=int(2.5e3),
    learningSize=32,
    gamma=0.99,
-   learnrate=1e-4,
-   epsilon=LinearDecay(1, 0.001, 5e4),
+   learnrate=2e-4,
+   epsilon=LinearDecay(1, 0.1, 1e5),
    repeatAction=4,
    learnInterval=4,
-   targetUpdateInterval=1000)
+   targetUpdateInterval=500)
 
 
 duelConfig = AgentConfiguration(
@@ -55,11 +43,11 @@ duelConfig = AgentConfiguration(
    prefill_size=int(2.5e3),
    learningSize=32,
    gamma=0.99,
-   learnrate=1e-4,
-   epsilon=LinearDecay(1, 0.001, 5e4),
+   learnrate=2e-4,
+   epsilon=LinearDecay(1, 0.1, 1e5),
    repeatAction=4,
    learnInterval=4,
-   targetUpdateInterval=1000)
+   targetUpdateInterval=500)
 
 
 combinations = [
@@ -74,21 +62,28 @@ for combination in combinations:
    agentname = combination["name"]
    agent: Agent = combination["agent"]
    prefix = f"{gamename}_{agentname}"
+   agent.fillMemory()
+   bestReward = 0
    for _ in agent.train():
       savename = f"{prefix}_training.pickle"
       with open(f"{savename}", "wb") as f:
-         pickle.dump(agent.log, f)
+         pickle.dump(agent.trainLog, f)
 
-      print(f"Played: {agent.training_playSteps} | Learned: {agent.learned} | Target updated: {agent.updated}")
+      print(f"Played: {agent.training_playSteps} | Learned: {agent.learned} | Target updated: {agent.updated} | Epsilon value: {agent.eps.getValue()}")
       
-      agent.eval(1)
+      agent.eval(10)
       savename = f"{prefix}_evaluation.pickle"
       with open(f"{savename}", "wb") as f:
          pickle.dump(agent.evaluationRewards, f)
+      
+      if bestReward < agent.evaluationRewards[-1]:
+         torch.save(agent.policy_net.state_dict(), f"{prefix}_best.model")
+         bestReward = agent.evaluationRewards[-1]
+         print("Saved best model")
 
    savename = f"{prefix}_training.pickle"
    with open(f"{savename}", "wb") as f:
-      pickle.dump(agent.log, f)
+      pickle.dump(agent.trainLog, f)
 
    savename = f"{prefix}_evaluation.pickle"
    with open(f"{savename}", "wb") as f:
