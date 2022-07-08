@@ -20,6 +20,7 @@ env = wrappers.NumpyWrapper(env, True)
 env = wrappers.PyTorchWrapper(env)
 env = wrappers.NoopResetEnv(env, 30)
 env = wrappers.LiveLostContinueEnv(env)
+env = wrappers.FireResetEnv(env)
 
 
 singleConfig = AgentConfiguration(
@@ -86,6 +87,10 @@ for combination in combinations:
          torch.save(agent.policy_net.state_dict(), f"{prefix}_best.model")
          bestReward = agent.evaluationRewards[-1]
          print("Saved best model")
+      # elif 0.8 * bestReward > agent.evaluationRewards[-1]:
+      #    agent.policy_net.load_state_dict(torch.load(f"{prefix}_best.model"))
+      #    agent.updateTargetNetwork()
+      #    print("Reloaded best model")
 
    savename = f"{prefix}_training.pickle"
    with open(f"{savename}", "wb") as f:

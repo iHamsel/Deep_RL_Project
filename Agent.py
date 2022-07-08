@@ -242,7 +242,6 @@ class Agent():
    def fillMemory(self):
       self.mode = "prefill"
       prefill = self.config.memory_size if self.config.prefill_size > self.config.memory_size else self.config.prefill_size
-      added = 0
       state = self.env.reset()
       for _ in range(prefill):
          prev_state = state

@@ -1,4 +1,3 @@
-import imp
 import gym
 from gym import spaces
 import numpy as np
@@ -51,9 +50,6 @@ class EpisodicLiveEnv(gym.Wrapper):
       if 0 < currentLives < self.lives:
          done = True
       self.lives = currentLives
-      print(f"TotalDone: {self.totalDone}")
-      print(f"Done: {done}")
-      print(f"Action: {action}")
       return obs, reward, done, info
 
    def reset(self, **kwargs):
@@ -67,16 +63,34 @@ class EpisodicLiveEnv(gym.Wrapper):
 class LiveLostContinueEnv(gym.Wrapper):
    def __init__(self, env:gym.Env):
       gym.Wrapper(env)
+      assert env.unwrapped.get_action_meanings()[1] == "FIRE"
       self.env = env
       self.lives = 0
 
    def step(self, action):
       obs, reward, done, info = self.env.step(action)
       currentLives = self.env.unwrapped.ale.lives()
-      if currentLives < self.lives:
-         obs, _, _, _ = self.env.step(1) #perform action to continue (no-op don't work @ breakout)
+      if 0 < currentLives < self.lives:
+         obs, _, _, _ = self.env.step(1)
       self.lives = currentLives
       return obs, reward, done, info
+
+class FireResetEnv(gym.Wrapper):
+
+   def __init__(self, env: gym.Env):
+      gym.Wrapper.__init__(self, env)
+      assert env.unwrapped.get_action_meanings()[1] == "FIRE"
+      assert len(env.unwrapped.get_action_meanings()) >= 3
+
+   def reset(self, **kwargs) -> np.ndarray:
+      self.env.reset(**kwargs)
+      obs, _, done, _ = self.env.step(1)
+      if done:
+         self.env.reset(**kwargs)
+      obs, _, done, _ = self.env.step(2)
+      if done:
+         self.env.reset(**kwargs)
+      return obs
 
 
 class NumpyWrapper(gym.ObservationWrapper):
