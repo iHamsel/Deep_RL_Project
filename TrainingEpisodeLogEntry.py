@@ -69,10 +69,10 @@ class TrainingLog:
    def lastEpisode(self) -> EpisodeEntry:
       return self.__episodes[-1]
 
-   def lastEpisodes(self, n: int) -> list[EpisodeEntry]:
+   def lastEpisodes(self, n: int) -> list:
       return self.__episodes[-n:]
 
-   def episodes(self) -> list[EpisodeEntry]:
+   def episodes(self) -> list:
       return self.__episodes
 
    def episodesLength(self) -> int:
@@ -81,7 +81,7 @@ class TrainingLog:
    def lastEpoch(self) -> EpochEntry:
       return self.__epochs[-1]
 
-   def epochs(self) -> list[EpochEntry]:
+   def epochs(self) -> list:
       return self.__epochs
 
    def epochsLength(self) -> int:

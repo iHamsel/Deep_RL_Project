@@ -1,5 +1,4 @@
 from numbers import Number
-from sqlalchemy import false, true
 import torch
 import random
 from torch.nn.functional import mse_loss
@@ -122,7 +121,7 @@ class Agent():
       self.mode = "train"
       self.policy_net.train()
 
-      done = false
+      done = False
       state = self.env.reset()
       losses = []
       episodeReward = 0
