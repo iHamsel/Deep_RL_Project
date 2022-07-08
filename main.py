@@ -33,7 +33,10 @@ singleConfig = AgentConfiguration(
    epsilon=LinearDecay(1, 0.1, 1e5),
    repeatAction=4,
    learnInterval=4,
-   targetUpdateInterval=500)
+   targetUpdateInterval=500,
+   trainingLength=1e6,
+   epochLength=5e3
+   )
 
 
 duelConfig = AgentConfiguration(
@@ -47,7 +50,10 @@ duelConfig = AgentConfiguration(
    epsilon=LinearDecay(1, 0.1, 1e5),
    repeatAction=4,
    learnInterval=4,
-   targetUpdateInterval=500)
+   targetUpdateInterval=500,
+   trainingLength=1e6,
+   epochLength=5e3
+   )
 
 
 combinations = [

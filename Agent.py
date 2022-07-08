@@ -109,10 +109,10 @@ class Agent():
          return self.policy_net(state).max(1)[1].view(1, 1)
 
    def train(self):
-      while self.learned < 1e6:
-         learnedLeft = 1e6 - self.learned
-         if learnedLeft > 5000:
-            self.trainEpoch(5000)
+      while self.learned < self.config.trainingLength:
+         learnedLeft = self.config.trainingLength - self.learned
+         if learnedLeft > self.config.epochLength:
+            self.trainEpoch(self.config.epochLength)
          else:
             self.trainEpoch(learnedLeft)
 
@@ -234,6 +234,7 @@ class Agent():
             if done == True:
                break
          
+         print(f"Evaluation episode reward: {episodeReward}")
          result += episodeReward
 
       self.evaluationRewards.append(result / episodes)
